@@ -55,12 +55,37 @@ async function run() {
             const result = await foodCollection.findOne(query);
             res.send(result)
         })
+        //update single food status to pending from available when food is requested
+        app.patch('/foods/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedFood = req.body;
+            console.log(updatedFood);
+            const updateDoc = {
+                $set: {
+                    foodStatus: updatedFood.foodStatus
+                },
+            };
+            const result = await foodCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
 
 
         // Food request related api
+        // app.get('/requests', async (req, res) => {
+        //     const cursor = requestCollection.find();
+        //     const result = await cursor.toArray();
+        //     res.send(result);
+        // })
+        // read request with some data
         app.get('/requests', async (req, res) => {
-            const cursor = requestCollection.find();
-            const result = await cursor.toArray();
+            console.log(req.query);
+            console.log(req.query.loggedUserEmail);
+            let query = {};
+            if (req.query?.loggedUserEmail) {
+                query = { loggedUserEmail: req.query.loggedUserEmail }
+            }
+            const result = await requestCollection.find(query).toArray();
             res.send(result);
         })
         //add food request
