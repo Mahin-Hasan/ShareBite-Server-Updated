@@ -34,14 +34,27 @@ async function run() {
         const requestCollection = client.db('shareBiite').collection('requests');
 
         //read
+        // app.get('/foods', async (req, res) => {
+        //     // const cursor = foodCollection.find();
+        //     const cursor = foodCollection.find().sort({ expiredDateTime: 1 });// sorting from lowest to highest
+        //     const result = await cursor.toArray();
+        //     // console.log(result);
+        //     // const sortedResult = result.sort({expiredDateTime: -1})
+        //     res.send(result);
+        // })
+        // updated get food api with sorting with least validity and email query
         app.get('/foods', async (req, res) => {
             // const cursor = foodCollection.find();
-            const cursor = foodCollection.find().sort({ expiredDateTime: 1 });// sorting from lowest to highest
+            console.log(req.query.userEmail);
+            let query = {};
+            if (req.query?.userEmail) {
+                query = { userEmail: req.query.userEmail }
+            }
+            const cursor = foodCollection.find(query).sort({ expiredDateTime: 1 });// sorting from lowest to highest
             const result = await cursor.toArray();
-            // console.log(result);
-            // const sortedResult = result.sort({expiredDateTime: -1})
             res.send(result);
         })
+
         //add food 
         app.post('/foods', async (req, res) => {
             const newFood = req.body;
@@ -69,6 +82,13 @@ async function run() {
             const result = await foodCollection.updateOne(filter, updateDoc);
             res.send(result);
         })
+        // delete single food by Id
+        app.delete('/foods/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await foodCollection.deleteOne(query);
+            res.send(result);
+        })
 
 
         // Food request related api
@@ -81,9 +101,15 @@ async function run() {
         app.get('/requests', async (req, res) => {
             console.log(req.query);
             console.log(req.query.loggedUserEmail);
+            console.log(req.query.foodId);
             let query = {};
             if (req.query?.loggedUserEmail) {
                 query = { loggedUserEmail: req.query.loggedUserEmail }
+            }
+            //another query to get items according to given food id
+            // Check if foodId is present in the query
+            if (req.query?.foodId) {
+                query.foodId = req.query.foodId;
             }
             const result = await requestCollection.find(query).toArray();
             res.send(result);
@@ -95,8 +121,27 @@ async function run() {
             const result = await requestCollection.insertOne(newRequest);
             res.send(result)
         })
-
-
+        //update food request status
+        app.patch('/requests/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const updatedReq = req.body;
+            console.log(updatedReq);
+            const updateReq = {
+                $set: {
+                    foodRequestStatus: updatedReq.foodRequestStatus
+                },
+            };
+            const result = await requestCollection.updateOne(filter, updateReq);
+            res.send(result);
+        })
+        //delete Requested food
+        app.delete('/requests/:id', async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) }
+            const result = await requestCollection.deleteOne(query);
+            res.send(result);
+        })
 
 
 
