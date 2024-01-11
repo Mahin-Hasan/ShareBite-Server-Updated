@@ -1,14 +1,22 @@
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 const app = express();
 require('dotenv').config();
 const port = process.env.PORT || 5000;
 
 
 //middleware
-app.use(cors());
+app.use(cors({
+    origin: [
+        'http://localhost:5173'
+    ],
+    credentials: true
+}));
 app.use(express.json());
+app.use(cookieParser());
 
 
 //connection
@@ -24,6 +32,26 @@ const client = new MongoClient(uri, {
     }
 });
 
+// secure api
+const logger = (req, res, next) => {
+    console.log('logger triggered', req.method, req.url);
+    next();
+}
+const verifyToken = (req, res, next) => {
+    const token = req?.cookies?.token;
+    console.log('current active token', token);
+    if (!token) {
+        return res.status(401).send({ message: 'access denied' })
+    }
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(401).send({ message: 'access denied' })
+        }
+        req.user = decoded;
+        next();
+    })
+}
+
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
@@ -32,6 +60,27 @@ async function run() {
         //Database Collections
         const foodCollection = client.db('shareBiite').collection('foods');
         const requestCollection = client.db('shareBiite').collection('requests');
+
+
+        //token related api
+        app.post('/token', async (req, res) => {
+            const user = req.body;
+            console.log('token for user: ', user);
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
+
+            res.cookie('token', token, {
+                httpOnly: true,
+                secure: true,
+                sameSite: 'none'
+            })
+                .send({ success: true });
+        })
+        //clear cookie on logout
+        app.post('/logout', async (req, res) => {
+            const user = req.body;
+            console.log('triggered log out', user);
+            res.clearCookie('token', { maxAge: 0 }).send({ success: true })
+        })
 
         //read
         // app.get('/foods', async (req, res) => {
@@ -45,7 +94,10 @@ async function run() {
         // updated get food api with sorting with least validity and email query
         app.get('/foods', async (req, res) => {
             // const cursor = foodCollection.find();
-            console.log(req.query.userEmail);
+            // console.log('from food api',req.query.userEmail, req.user.email);
+            // if (req.user.email !== req.query.userEmail) {
+            //     return res.status(403).send({ message: 'access denied' })
+            // }
             let query = {};
             if (req.query?.userEmail) {
                 query = { userEmail: req.query.userEmail }
@@ -73,13 +125,46 @@ async function run() {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updatedFood = req.body;
-            console.log(updatedFood);
+            // console.log(updatedFood);
             const updateDoc = {
                 $set: {
                     foodStatus: updatedFood.foodStatus
                 },
             };
             const result = await foodCollection.updateOne(filter, updateDoc);
+            res.send(result);
+        })
+        //update full food information
+        // foodName
+        // foodImage
+        // foodQuantity
+        // pickupLocation
+        // expiredDateTime
+        // additionalNotes
+        // foodStatus
+        // userName
+        // userEmail
+        // userPhoto   
+        app.put('/foods/:id', async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) }
+            const options = { upsert: true };
+            const updatedFoods = req.body;
+            const brands = {
+                $set: {
+                    foodName: updatedFoods.foodName,
+                    foodImage: updatedFoods.foodImage,
+                    foodQuantity: updatedFoods.foodQuantity,
+                    pickupLocation: updatedFoods.pickupLocation,
+                    expiredDateTime: updatedFoods.expiredDateTime,
+                    additionalNotes: updatedFoods.additionalNotes,
+                    foodStatus: updatedFoods.foodStatus,
+                    userName: updatedFoods.userName,
+                    userEmail: updatedFoods.userEmail,
+                    userPhoto: updatedFoods.userPhoto,
+                }
+            }
+            const result = await foodCollection.updateOne(filter, brands, options)
             res.send(result);
         })
         // delete single food by Id
@@ -98,16 +183,17 @@ async function run() {
         //     res.send(result);
         // })
         // read request with some data
-        app.get('/requests', async (req, res) => {
-            console.log(req.query);
-            console.log(req.query.loggedUserEmail);
-            console.log(req.query.foodId);
+        app.get('/requests', logger, verifyToken, async (req, res) => {
+            // commenting verify email with req.user email cz this get api sends multiple responses which hampers when requested from other components
+            // console.log('debug', req.user.email, req.query.loggedUserEmail);
+            // if (req.user.email !== req.query.loggedUserEmail) {
+            //     return res.status(403).send({ message: 'access denied' })
+            // }
             let query = {};
             if (req.query?.loggedUserEmail) {
                 query = { loggedUserEmail: req.query.loggedUserEmail }
             }
             //another query to get items according to given food id
-            // Check if foodId is present in the query
             if (req.query?.foodId) {
                 query.foodId = req.query.foodId;
             }
@@ -126,7 +212,7 @@ async function run() {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updatedReq = req.body;
-            console.log(updatedReq);
+            // console.log(updatedReq);
             const updateReq = {
                 $set: {
                     foodRequestStatus: updatedReq.foodRequestStatus
