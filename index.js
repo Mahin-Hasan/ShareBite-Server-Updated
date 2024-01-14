@@ -82,22 +82,8 @@ async function run() {
             res.clearCookie('token', { maxAge: 0 }).send({ success: true })
         })
 
-        //read
-        // app.get('/foods', async (req, res) => {
-        //     // const cursor = foodCollection.find();
-        //     const cursor = foodCollection.find().sort({ expiredDateTime: 1 });// sorting from lowest to highest
-        //     const result = await cursor.toArray();
-        //     // console.log(result);
-        //     // const sortedResult = result.sort({expiredDateTime: -1})
-        //     res.send(result);
-        // })
         // updated get food api with sorting with least validity and email query
         app.get('/foods', async (req, res) => {
-            // const cursor = foodCollection.find();
-            // console.log('from food api',req.query.userEmail, req.user.email);
-            // if (req.user.email !== req.query.userEmail) {
-            //     return res.status(403).send({ message: 'access denied' })
-            // }
             let query = {};
             if (req.query?.userEmail) {
                 query = { userEmail: req.query.userEmail }
@@ -125,7 +111,6 @@ async function run() {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updatedFood = req.body;
-            // console.log(updatedFood);
             const updateDoc = {
                 $set: {
                     foodStatus: updatedFood.foodStatus
@@ -133,18 +118,7 @@ async function run() {
             };
             const result = await foodCollection.updateOne(filter, updateDoc);
             res.send(result);
-        })
-        //update full food information
-        // foodName
-        // foodImage
-        // foodQuantity
-        // pickupLocation
-        // expiredDateTime
-        // additionalNotes
-        // foodStatus
-        // userName
-        // userEmail
-        // userPhoto   
+        }) 
         app.put('/foods/:id', async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) }
@@ -175,20 +149,9 @@ async function run() {
             res.send(result);
         })
 
-
         // Food request related api
-        // app.get('/requests', async (req, res) => {
-        //     const cursor = requestCollection.find();
-        //     const result = await cursor.toArray();
-        //     res.send(result);
-        // })
         // read request with some data
         app.get('/requests', logger, verifyToken, async (req, res) => {
-            // commenting verify email with req.user email cz this get api sends multiple responses which hampers when requested from other components
-            // console.log('debug', req.user.email, req.query.loggedUserEmail);
-            // if (req.user.email !== req.query.loggedUserEmail) {
-            //     return res.status(403).send({ message: 'access denied' })
-            // }
             let query = {};
             if (req.query?.loggedUserEmail) {
                 query = { loggedUserEmail: req.query.loggedUserEmail }
@@ -203,7 +166,6 @@ async function run() {
         //add food request
         app.post('/requests', async (req, res) => {
             const newRequest = req.body;
-            // console.log(newRequest);
             const result = await requestCollection.insertOne(newRequest);
             res.send(result)
         })
@@ -212,7 +174,6 @@ async function run() {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
             const updatedReq = req.body;
-            // console.log(updatedReq);
             const updateReq = {
                 $set: {
                     foodRequestStatus: updatedReq.foodRequestStatus
@@ -228,8 +189,6 @@ async function run() {
             const result = await requestCollection.deleteOne(query);
             res.send(result);
         })
-
-
 
 
 
