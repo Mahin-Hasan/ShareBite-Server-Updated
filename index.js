@@ -11,7 +11,9 @@ const port = process.env.PORT || 5000;
 //middleware
 app.use(cors({
     origin: [
-        'http://localhost:5173'
+        // 'http://localhost:5173'
+        'https://sharebite-66978.web.app',
+        'https://sharebite-66978.firebaseapp.com'
     ],
     credentials: true
 }));
@@ -34,12 +36,12 @@ const client = new MongoClient(uri, {
 
 // secure api
 const logger = (req, res, next) => {
-    console.log('logger triggered', req.method, req.url);
+    // console.log('logger triggered', req.method, req.url);
     next();
 }
 const verifyToken = (req, res, next) => {
     const token = req?.cookies?.token;
-    console.log('current active token', token);
+    // console.log('current active token', token);
     if (!token) {
         return res.status(401).send({ message: 'access denied' })
     }
@@ -65,7 +67,7 @@ async function run() {
         //token related api
         app.post('/token', async (req, res) => {
             const user = req.body;
-            console.log('token for user: ', user);
+            // console.log('token for user: ', user);
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' });
 
             res.cookie('token', token, {
@@ -78,7 +80,7 @@ async function run() {
         //clear cookie on logout
         app.post('/logout', async (req, res) => {
             const user = req.body;
-            console.log('triggered log out', user);
+            // console.log('triggered log out', user);
             res.clearCookie('token', { maxAge: 0 }).send({ success: true })
         })
 
